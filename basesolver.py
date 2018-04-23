@@ -1,3 +1,15 @@
+"""Deep Learning base solver module
+
+This module is a base solver module to train, save and restore DL project
+
+Example:
+    To train a net using db,
+
+    from basesolver import BaseSolver
+    Solver = BaseSolver(sess, net, tb_dir, log_dir)
+    Solver.train_model(sess, max_iters=10000)
+
+"""
 import tensorflow as tf
 from tensorflow.python import pywrap_tensorflow
 
@@ -10,6 +22,51 @@ import glob
 
 
 class BaseSolver(object):
+    """Base solver class
+
+    Some notes here
+
+    Arguments:
+        sess: Tensorflow Session, network will run on this session
+        network: Class, net(work) should have the following properties
+
+            net.create_architecture()
+            '''create tensorflow graph and returns total loss
+
+            Returns:
+                Dictionary which contains at least one element
+                layers['total_loss']: tf.float, for SGD training
+            '''
+
+            net.get_variables_to_restore(variables, var_keep_dic)
+            '''get variables to restore at the pretrained model
+
+            Args:
+                variables: List of Variables, tf.global_variables()
+                var_keep_dic: List of Variables, from checkpointreader
+
+            Returns:
+                Dict of List of Variables, indicating variables to restore
+                from pretrained model
+            '''
+
+            net.train_step_with_summary(sess, data, train_op)
+            '''train network with tensorboard summary
+
+            Args:
+                sess: Tensorflow Session
+                data:
+                train_op:
+
+            net.train_step(sess, data, train_op)
+
+            net.get_summary(sess, val_data)
+
+        tb_dir: String, path to save tensorboard summary
+        log_dir: String, path to save model checkpoint files
+        pretrained_model: String, path to restore pretrained model
+            default None(No pretrained model)
+    """
     def __init__(self, sess, network, tb_dir, log_dir, pretrained_model=None):
         self.net = network
         self.pretrained_model = pretrained_model
@@ -58,7 +115,8 @@ class BaseSolver(object):
             data = self.next_batch()
             now = time.time()
             if iter == 1 or iter % cfg.TRAIN_SUMMARY_INTERVAL == 0:
-                losses, summary = self.net.train_step_with_summary(sess, data, train_op)
+                losses, summary = self.net.train_step_with_summary(sess, data,
+                                                                   train_op)
                 self.writer.add_summary(summary, float(iter))
 
                 # EDIT: Delete if no validations
@@ -98,8 +156,10 @@ class BaseSolver(object):
 
         # EDIT: want to use pretrained model, use below
         print('Loading initial model weights from pretrained model')
-        var_keep_dic = self.get_variables_in_checkpoint_file(self.pretrained_model)
-        variables_to_restore = self.net.get_variables_to_restore(variables, var_keep_dic)
+        var_keep_dic = self.get_variables_in_checkpoint_file(
+            self.pretrained_model)
+        variables_to_restore = self.net.get_variables_to_restore(
+            variables, var_keep_dic)
         restorer = tf.train.Saver(variables_to_restore)
         restorer.restore(sess, self.pretrained_model)
         print('Loaded')
@@ -117,7 +177,8 @@ class BaseSolver(object):
     def restore(self, sess, sfile, nfile):
         np_paths = [nfile]
         ss_paths = [sfile]
-        last_snapshot_iter, last_snapshot_rate = self.from_snapshot(sess, sfile, nfile)
+        last_snapshot_iter, last_snapshot_rate = self.from_snapshot(
+            sess, sfile, nfile)
 
         return last_snapshot_rate, last_snapshot_iter, np_paths, ss_paths
 
@@ -165,7 +226,8 @@ class BaseSolver(object):
 
     def find_snapshots(self):
         # EDIT: this will automatically find the most recent snapshots.
-        sfiles = os.path.join(self.log_dir, cfg.TRAIN_SNAPSHOT_PREFIX + '_iter_*.ckpt.meta')
+        sfiles = os.path.join(
+            self.log_dir, cfg.TRAIN_SNAPSHOT_PREFIX + '_iter_*.ckpt.meta')
         sfiles = glob.glob(sfiles)
         sfiles.sort(key=os.path.getmtime)
 
