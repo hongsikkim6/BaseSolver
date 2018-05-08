@@ -10,6 +10,10 @@ class VGG16(Network):
         Network.__init__(self)
         self._losses = {}
         self._predictions = {}
+        self._event_summaries = {}
+        self._act_summaries = []
+        self._score_summaries = {}
+        self._train_summaries = []
         self._num_classes = num_classes
         self._num_batch = 256
 
@@ -93,13 +97,43 @@ class VGG16(Network):
                 activation=None
             )
         self._predictions['score'] = cls_score
-
-        self.add_loss()
+        self._score_summaries.update(self._predictions)
+        self._add_loss()
         print('Done')
+
+        for var in tf.trainable_variables():
+            self._train_summaries.append(var)
+
+        val_summaries = []
+
+        with tf.device('/cpu:0'):
+            for key, var in self._event_summaries.items():
+                val_summaries.append(tf.summary.scalar(key, var))
+            for key, var in self._score_summaries.items():
+                self._add_score_summary(key, var)
+            for var in self._act_summaries:
+                self._add_act_summary(var)
+            for var in self._train_summaries:
+                self._add_train_summary(var)
+
+        self._summary_op = tf.summary.merge_all()
+        self._summary_op_val = tf.summary.merge(val_summaries)
 
         return self._losses
 
-    def add_loss(self):
+    def _add_act_summary(self, tensor):
+        tf.summary.historgram('ACT/' + tensor.op.name + '/activations', tensor)
+        tf.summary.scalar('ACT/' + tensor.op.name + '/zero_fraction',
+                          tf.nn.zero_fraction(tensor))
+
+    def _add_score_summary(self, key, tensor):
+        tf.summary.histogram('SCORE/' + tensor.op.name + '/' + key + '/scores',
+                             tensor)
+
+    def _add_train_summary(self, var):
+        tf.summary.histogram('TRAIN/' + var.op.name, var)
+
+    def _add_loss(self):
         with tf.variable_scope('LOSS') as scope:
             cross_entropy = tf.reduce_mean(
                 tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -115,14 +149,41 @@ class VGG16(Network):
             self._losses['cross_entropy'] = cross_entropy
             self._losses['total_loss'] = cross_entropy
 
+        self._event_summaries.update(self._losses)
+
     def train_step(self, sess, data, train_op):
-        raise NotImplementedError
+        feed_dict = {
+            self._img_batch: data['img_batch'],
+            self._label: data['label']}
+        loss, _ = sess.run(
+            [self._losses['total_loss'],
+             train_op],
+            feed_dict=feed_dict
+        )
+
+        return loss
 
     def train_step_with_summary(self, sess, data, train_op):
-        raise NotImplementedError
+        feed_dict = {
+            self._img_batch: data['img_batch'],
+            self._label: data['label']}
+        loss, summary, _ = sess.run(
+            [self._losses['total_loss'],
+             self._summary_op,
+             train_op],
+            feed_dict=feed_dict
+        )
 
-    def get_summary(self, val_data):
-        raise NotImplementedError
+        return loss, summary
+
+    def get_summary(self, sess, data):
+        feed_dict = {
+            self._img_batch: data['img_batch'],
+            self._label: data['label']}
+        summary = sess.run(self._summary_op_val,
+                           feed_dict=feed_dict)
+
+        return summary
 
     def add_block(self, inputs, repeat,
                   is_training, filters, scope_name, rate):

@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import pickle
 import subprocess
+import random
 
 
 class Imagenet2012(object):
@@ -86,10 +87,28 @@ class Imagenet2012(object):
         return _val_list
 
     def get_next_train_batch(self):
-        raise NotImplementedError
+        _batch = list()
+        if len(self._train_queue) < self._batch_size:
+            self._train_queue.extend(self._train_list.keys())
+        random.shuffle(self._train_queue)
+        for _ in range(self._batch_size):
+            _batch.append(self._train_queue.pop())
+
+        print(_batch[0])
+        print(self._train_list[_batch[0]])
+        return _batch
 
     def get_next_val_batch(self):
-        raise NotImplementedError
+        _batch = list()
+        if len(self._val_queue) < self._batch_size:
+            self._val_queue.extend(self._val_list.keys())
+        random.shuffle(self._val_queue)
+        for _ in range(self._batch_size):
+            _batch.append(self._val_queue.pop())
+
+        print(_batch[0])
+        print(self._val_list[_batch[0]])
+        return _batch
 
     def _load_annotation(self, index):
         filename = os.path.join(index)
@@ -97,24 +116,26 @@ class Imagenet2012(object):
         objs = tree.findall('object')
         num_objs = len(objs)
         boxes = np.zeros((num_objs, 4), dtype=np.uint16)
-        gt_classes = np.zeros((num_objs), dtype=np.int32)
+        gt_classes = np.zeros(num_objs, dtype=np.int32)
         overlaps = np.zeros((num_objs, self._num_classes), dtype=np.float32)
-        seg_areas = np.zeros((num_objs), dtype=np.float32)
+        seg_areas = np.zeros(num_objs, dtype=np.float32)
 
         for ix, obj in enumerate(objs):
             bbox = obj.find('bndbox')
-            x1 = float(bbox.find('xmin').text) - 1
-            y1 = float(bbox.find('ymin').text) - 1
-            x2 = float(bbox.find('xmax').text) - 1
-            y2 = float(bbox.find('ymax').text) - 1
+            x1 = float(bbox.find('xmin').text)
+            y1 = float(bbox.find('ymin').text)
+            x2 = float(bbox.find('xmax').text)
+            y2 = float(bbox.find('ymax').text)
             try:
                 cls = self._class_to_ind[obj.find('name').text.lower().strip()]
-            except KeyError:
+            except:
                 try:
                     cls = \
-                        self._class_to_ind[index.split('_')[0].lower().strip()]
-                except KeyError:
+                        self._class_to_ind[
+                            index.split('/')[-1].split('_')[0].lower().strip()]
+                except:
                     cls = self._class_to_ind['__background__']
+                    print(index)
 
             boxes[ix, :] = [x1, y1, x2, y2]
             gt_classes[ix] = cls
@@ -131,6 +152,8 @@ class Imagenet2012(object):
 if __name__ == '__main__':
     test = Imagenet2012(
         path='/home/hongsikkim/HDD/data/Imagenet',
-        batch_size=32,
+        batch_size=4,
         shuffle=None)
-    print(len(test._train_list))
+    for i in range(5):
+        test.get_next_train_batch()
+        #test.get_next_val_batch()
