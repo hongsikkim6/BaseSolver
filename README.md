@@ -12,3 +12,8 @@ All codes are only for research. Thank you
 2. CNN_LSTM_CTC_OCR
  - https://github.com/weinman/cnn_lstm_ctc_ocr
  
+# To-do List
+
+0. Modify TextRecognitionGenerator and add direct pipeline to training Net
+ - https://github.com/Belval/TextRecognitionDataGenerator
+
