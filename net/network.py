@@ -6,7 +6,7 @@ class Network(object):
         self._losses = {}
 
 
-    def create_architecture(self):
+    def create_architecture(self, is_training=True):
         raise NotImplementedError
 
     def get_variables_to_restore(self, variables, var_keep_dic):
@@ -25,6 +25,6 @@ class Network(object):
     def train_step_with_summary(self, sess, data, train_op):
         raise NotImplementedError
 
-    def get_summary(self, val_data):
+    def get_summary(self, sess, data):
         raise NotImplementedError
 

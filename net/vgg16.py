@@ -17,7 +17,7 @@ class VGG16(Network):
         self._num_classes = num_classes
         self._num_batch = 256
 
-    def create_architecture(self, is_training):
+    def create_architecture(self, is_training=True):
         self._img_batch = tf.placeholder(dtype=tf.float32,
                                          shape=[None, 32, 32, 3],
                                          name='input')
@@ -122,7 +122,7 @@ class VGG16(Network):
         return self._losses
 
     def _add_act_summary(self, tensor):
-        tf.summary.historgram('ACT/' + tensor.op.name + '/activations', tensor)
+        tf.summary.histogram('ACT/' + tensor.op.name + '/activations', tensor)
         tf.summary.scalar('ACT/' + tensor.op.name + '/zero_fraction',
                           tf.nn.zero_fraction(tensor))
 
